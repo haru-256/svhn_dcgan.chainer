@@ -2,9 +2,7 @@ import chainer
 from chainer import training
 from chainer.training import extensions
 from generator import Generator
-from utils import out_generated
-from utils import plot_kde_data, plot_kde_data_real, plot_scatter_data, plot_scatter_real_data
-from dataset import GmmDataset
+from utils import out_generated_imag
 import argparse
 import pathlib
 
@@ -104,13 +102,7 @@ if __name__ == '__main__':
     opt_dis = make_optimizer(dis)
 
     # Load the GMM dataset
-    dataset = GmmDataset(datasize, seed, std=0.02, scale=args.radius)
-    plot_kde_data_real(chainer.dataset.concat_examples(
-        dataset[:]), out, radius=args.radius,
-        shade=True, cbar=False, cmap="Reds", shade_lowest=False)
-    plot_scatter_real_data(chainer.dataset.concat_examples(
-        dataset[:]), out, radius=args.radius,)
-
+    dataset, _ = chainer.datasets.get_svhn(withlabel=False, scale=255.)
     train_iter = chainer.iterators.SerialIterator(dataset, batch_size)
 
     # Set up a trainer
@@ -155,8 +147,8 @@ if __name__ == '__main__':
             x_key='epoch',
             file_name='loss_{0}_{1}.jpg'.format(number, seed),
             grid=True))
-    trainer.extend(out_generated(
-        gen, seed, out, radius=args.radius, datasize=10000))
+    trainer.extend(out_generated_imag(
+        gen, 7, 7, seed, out))
 
     # Run the training
     trainer.run()

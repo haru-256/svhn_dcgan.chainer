@@ -26,20 +26,43 @@ class Generator(chainer.Chain):
     ---------------------
     """
 
-    def __init__(self, n_hidden=100, wscale=0.02):
+    def __init__(self, n_hidden=100, bottom_width=4, in_ch=512, wscale=0.02):
         super(Generator, self).__init__()
         self.n_hidden = n_hidden
+        self.bottom_width = bottom_width
+        self.in_ch = in_ch
 
         with self.init_scope():
-            w = chainer.initializers.HeNormal(wscale)  # initializers
+            w = chainer.initializers.Normal(wscale)  # initializers
 
             self.l0 = L.Linear(in_size=self.n_hidden,
-                               out_size=128, initialW=w, nobias=True)
-            self.l1 = L.Linear(in_size=None, out_size=128,
-                               initialW=w, nobias=True)
-            self.l2 = L.Linear(in_size=None, out_size=2, initialW=w)
-            self.bn0 = L.BatchNormalization(size=128)
-            self.bn1 = L.BatchNormalization(size=128)
+                               out_size=bottom_width*bottom_width*in_ch,
+                               initialW=w,
+                               nobias=True)  # (N, bottom_width*bottom_width*in_ch)
+            self.dc1 = L.Deconvolution2D(in_channels=None,
+                                         out_channels=in_ch//2,
+                                         pad=1,
+                                         stride=2,
+                                         ksize=4,
+                                         initialW=w,
+                                         nobias=True)  # (N, 256, 8, 8)
+            self.dc2 = L.Deconvolution2D(in_channels=None,
+                                         out_channels=in_ch//4,
+                                         pad=1,
+                                         stride=2,
+                                         ksize=4,
+                                         initialW=w,
+                                         nobias=True)  # (N, 128, 16, 16)
+            self.dc3 = L.Deconvolution2D(in_channels=None,
+                                         out_channels=3,
+                                         stride=2,
+                                         ksize=4,
+                                         initialW=w)  # (N, 128, 16, 16)
+
+            self.bn0 = L.BatchNormalization(
+                size=bottom_width*bottom_width*in_ch)
+            self.bn1 = L.BatchNormalization(size=in_ch//2)
+            self.bn2 = L.BatchNormalization(size=in_ch//4)
 
     def make_hidden(self, batchsize=100):
         """
@@ -53,8 +76,11 @@ class Generator(chainer.Chain):
 
     def __call__(self, z):
         h = F.relu(self.bn0(self.l0(z)))
-        h = F.relu(self.bn1(self.l1(h)))
-        x = self.l2(h)  # linear projection to 2
+        h = F.reshape(
+            h, (-1, self.in_ch, self.bottom_width, self.bottom_width))
+        h = F.relu(self.bn1(self.dc1(h)))
+        h = F.relu(self.bn2(self.dc2(h)))
+        x = F.tanh(self.dc3(h))  # linear projection to 2
 
         return x
 

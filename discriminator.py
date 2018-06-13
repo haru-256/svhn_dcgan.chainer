@@ -12,8 +12,10 @@ class Discriminator(chainer.Chain):
     Parametors
     ---------------------
     in_ch: int
-       Channel when converting the output of the first layer
-       to the 4-dimensional tensor
+        Channel of input image
+
+    bottom_width: int
+        width & height of input image
 
     wscale: float
         std of normal initializer
@@ -21,21 +23,47 @@ class Discriminator(chainer.Chain):
     ---------------------
     """
 
-    def __init__(self, in_ch=1, wscale=0.02):
+    def __init__(self, in_ch=3, bottom_width=4, wscale=0.02):
         super(Discriminator, self).__init__()
+        self.bottom_width = bottom_width
+        self.in_ch = in_ch
         with self.init_scope():
             # initializers
             w = chainer.initializers.HeNormal(wscale)
 
             # register layer with variable
-            self.l0 = L.Linear(in_size=None, out_size=128, initialW=w)
-            self.l1 = L.Linear(in_size=None, out_size=1, initialW=w)
-
-            self.bn1 = L.BatchNormalization(size=128)
+            self.c0 = L.Convolution2D(
+                in_channels=self.in_ch,
+                out_channels=128,
+                ksize=5,
+                stride=2,
+                pad=2,
+                initialW=w)  # (N, 128, 16, 16)
+            self.c1 = L.Convolution2D(
+                in_channels=None,
+                out_channels=256,
+                ksize=5,
+                stride=2,
+                pad=2,
+                initialW=w,
+                nobias=True)  # (N, 256, 8, 8)
+            self.c2 = L.Convolution2D(
+                in_channels=None,
+                out_channels=512,
+                ksize=5,
+                stride=2,
+                pad=2,
+                initialW=w,
+                nobias=True)  # (N, 512, 4, 4)
+            self.l3 = L.Linear(in_size=None, out_size=1, initialW=w)
+            self.bn1 = L.BatchNormalization(size=256)
+            self.bn2 = L.BatchNormalization(size=512)
 
     def __call__(self, x):
-        h = F.relu(self.l0(x))
-        logits = self.l1(h)
+        h = F.leaky_relu(self.c0(x))
+        h = F.leaky_relu(self.bn1(self.c1(h)))
+        h = F.leaky_relu(self.bn2(self.c2(h)))
+        logits = self.l3(h)
 
         return logits
 
@@ -45,7 +73,7 @@ if __name__ == "__main__":
     from chainer import Variable
     import numpy as np
 
-    z = np.random.uniform(-1, 1, (10, 2)).astype("f")
+    z = np.random.uniform(-1, 1, (10, 3, 32, 32)).astype("f")
     model = Discriminator()
     img = model(Variable(z))
     # print(img)
