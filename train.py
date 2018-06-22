@@ -59,6 +59,10 @@ if __name__ == '__main__':
     if not out.exists():
         out.mkdir()
 
+    # 引数(ハイパーパラメータの設定)の書き出し
+    with open(out / "args.txt", "w") as f:
+        f.write(str(args))
+
     print('GPU: {}'.format(gpu))
     print('# Minibatch-size: {}'.format(batch_size))
     print('# n_hidden: {}'.format(n_hidden))
@@ -86,7 +90,7 @@ if __name__ == '__main__':
     elif args.discriminator == 3:
         print("# Discriminator applied GAP")
         from discriminator_gap import Discriminator
-        from updater_fm import DCGANUpdater
+        from updater import DCGANUpdater
         dis = Discriminator()
 
     print('')
