@@ -2,9 +2,11 @@ import chainer
 from chainer import training
 from chainer.training import extensions
 from generator import Generator
-from utils import out_generated_imag
+from utils import out_generated_image
 import argparse
 import pathlib
+import matplotlib.pyplot as plt
+plt.style.use("ggplot")
 
 if __name__ == '__main__':
     # パーサーを作る
@@ -19,8 +21,6 @@ if __name__ == '__main__':
     # 引数の追加
     parser.add_argument('-s', '--seed', help='seed',
                         type=int, required=True)
-    parser.add_argument('-ds', '--datasize', help='data size. defalut value is 10000',
-                        type=int, default=10000)
     parser.add_argument('-n', '--number', help='the number of experiments.',
                         type=int, required=True)
     parser.add_argument('--hidden', help='the number of codes of Generator.',
@@ -28,15 +28,17 @@ if __name__ == '__main__':
     parser.add_argument('-e', '--epoch', help='the number of epoch, defalut value is 100',
                         type=int, default=100)
     parser.add_argument('-bs', '--batch_size', help='batch size. defalut value is 128',
-                        type=int, default=120)
+                        type=int, default=128)
     parser.add_argument('-g', '--gpu', help='specify gpu by this number. defalut value is 0',
                         choices=[-1, 0, 1], type=int, default=0)
     parser.add_argument('-dis', '--discriminator',
                         help='specify discriminator by this number. any of following;'
-                        ' 0: original, 1: minibatch discriminatio, 2: feature matching. defalut value is 0',
-                        choices=[0, 1, 2], type=int, default=0)
-    parser.add_argument('-r', '--radius',
-                        help='specify radius of GMM by this number. ', type=int, default=2)
+                        ' 0: original, 1: minibatch discriminatio, 2: feature matching, 3: Global Average Pooling. defalut value is 0',
+                        choices=[0, 1, 2, 3], type=int, default=0)
+    parser.add_argument('-ts', '--tensor_shape',
+                        help='specify Tensor shape by this numbers. first args denotes to B, seconds to C.'
+                        ' defalut value are B:32, C:8',
+                        type=int, default=[32, 8], nargs=2)
     parser.add_argument('-V', '--version', version='%(prog)s 1.0.0',
                         action='version',
                         default=False)
@@ -50,7 +52,6 @@ if __name__ == '__main__':
     epoch = args.epoch
     seed = args.seed
     number = args.number  # number of experiments
-    datasize = args.datasize
     out = pathlib.Path("result_{0}".format(number))
     if not out.exists():
         out.mkdir()
@@ -59,7 +60,6 @@ if __name__ == '__main__':
         out.mkdir()
 
     print('GPU: {}'.format(gpu))
-    print('# Dara size: {}'.format(datasize))
     print('# Minibatch-size: {}'.format(batch_size))
     print('# n_hidden: {}'.format(n_hidden))
     print('# epoch: {}'.format(epoch))
@@ -70,14 +70,24 @@ if __name__ == '__main__':
         print("# Original Discriminator")
         from discriminator import Discriminator
         from updater import DCGANUpdater
+        dis = Discriminator()
     elif args.discriminator == 1:
         print("# Discriminator applied Minibatch Discrimination")
+        print('# Tensor shape is A x {0} x {1}'.format(
+            args.tensor_shape[0], args.tensor_shape[1]))
         from discriminator_md import Discriminator
         from updater import DCGANUpdater
+        dis = Discriminator(B=args.tensor_shape[0], C=args.tensor_shape[1])
     elif args.discriminator == 2:
         print("# Discriminator applied matching")
         from discriminator_fm import Discriminator
         from updater_fm import DCGANUpdater
+        dis = Discriminator()
+    elif args.discriminator == 3:
+        print("# Discriminator applied GAP")
+        from discriminator_gap import Discriminator
+        from updater_fm import DCGANUpdater
+        dis = Discriminator()
 
     print('')
 
@@ -104,6 +114,7 @@ if __name__ == '__main__':
     # Load the GMM dataset
     dataset, _ = chainer.datasets.get_svhn(withlabel=False, scale=255.)
     train_iter = chainer.iterators.SerialIterator(dataset, batch_size)
+    print("# Data size: {}".format(len(dataset)), end="\n\n")
 
     # Set up a trainer
     updater = DCGANUpdater(
@@ -113,7 +124,6 @@ if __name__ == '__main__':
             'gen': opt_gen,
             'dis': opt_dis
         },
-        scale=args.radius,
         device=gpu)
     trainer = training.Trainer(updater, (epoch, 'epoch'), out=out)
 
@@ -140,15 +150,15 @@ if __name__ == '__main__':
             'dis/loss',
         ]),
         trigger=display_interval)
-    trainer.extend(extensions.ProgressBar(update_interval=10))
+    trainer.extend(extensions.ProgressBar(update_interval=100))
     trainer.extend(
         extensions.PlotReport(
             ['gen/loss', 'dis/loss'],
             x_key='epoch',
             file_name='loss_{0}_{1}.jpg'.format(number, seed),
-            grid=True))
-    trainer.extend(out_generated_imag(
-        gen, 7, 7, seed, out))
+            grid=False))
+    trainer.extend(out_generated_image(
+        gen, 7, 7, seed, out), trigger=display_interval)
 
     # Run the training
     trainer.run()

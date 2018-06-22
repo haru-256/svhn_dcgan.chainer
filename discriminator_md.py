@@ -66,7 +66,7 @@ class Minibatch_Discrimination(chainer.Chain):
 class Discriminator(chainer.Chain):
     """Discriminator
 
-    build Discriminator model
+    build Discriminator model applied Minibatch Discrimination
 
     Parametors
     ---------------------

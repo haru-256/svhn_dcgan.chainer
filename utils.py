@@ -47,7 +47,7 @@ def out_generated_image(gen, rows, cols, seed, dst):
         function that returns make_images that has Trainer object
         as argument.
     """
-    @chainer.training.make_extension()
+    @chainer.training.make_extension(trigger=(1, 'epoch'))
     def make_image(trainer):
         n_images = rows * cols
 

@@ -55,9 +55,10 @@ class Generator(chainer.Chain):
                                          nobias=True)  # (N, 128, 16, 16)
             self.dc3 = L.Deconvolution2D(in_channels=None,
                                          out_channels=3,
+                                         pad=1,
                                          stride=2,
                                          ksize=4,
-                                         initialW=w)  # (N, 128, 16, 16)
+                                         initialW=w)  # (N, 3, 32, 32)
 
             self.bn0 = L.BatchNormalization(
                 size=bottom_width*bottom_width*in_ch)

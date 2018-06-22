@@ -12,7 +12,6 @@ class DCGANUpdater(chainer.training.StandardUpdater):
 
     def __init__(self, *args, **kwargs):
         self.gen, self.dis = kwargs.pop("models")  # extract model
-        self.scale = kwargs.pop('scale')
         super(DCGANUpdater, self).__init__(*args,
                                            **kwargs)  # StandardUpdaterを呼ぶ
 
@@ -27,7 +26,7 @@ class DCGANUpdater(chainer.training.StandardUpdater):
 
         x_real = Variable(self.converter(
             batch, self.device))  # self.converter() is concat_example()
-        # x_real = x_real / self.scale
+        x_real = (x_real - 127.5)/127.5
 
         xp = chainer.backends.cuda.get_array_module(
             x_real.data)  # return cupy or numpy based on type of x_real.data
