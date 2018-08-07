@@ -5,8 +5,11 @@ from generator import Generator
 from utils import out_generated_image
 import argparse
 import pathlib
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 plt.style.use("ggplot")
+import datetime
 
 if __name__ == '__main__':
     # パーサーを作る
@@ -164,5 +167,7 @@ if __name__ == '__main__':
     trainer.extend(out_generated_image(
         gen, 7, 7, seed, out), trigger=display_interval)
 
+    since = datetime.datetime.now()
     # Run the training
     trainer.run()
+    print("Elapsed Time:", datetime.datetime.now()-since)

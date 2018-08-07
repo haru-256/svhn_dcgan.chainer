@@ -1,6 +1,8 @@
 import pathlib
 import numpy as np
 import chainer
+import matplotlib as mpl
+mpl.use("Agg")
 import matplotlib.pyplot as plt
 import chainer.backends.cuda
 from chainer import Variable
